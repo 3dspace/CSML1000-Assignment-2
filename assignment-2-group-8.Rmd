@@ -1,0 +1,73 @@
+#################################
+##
+## GROUP 8, ASSIGNMENT #2, York CSML1000 Fall 2019 .Rmd Starter File with CRISP-DM.
+##
+## In this skeleton of a file, we outline the major steps of CRISP-DM, in the hopes of touching on as many
+## of the points as possible. (Some may be changed or combined along the way, but this is the roadmap.)
+##
+## Quick link to Assignment Specification: https://github.com/3dspace/CSML1000-Assignment-2/blob/master/specification-assignment-2.pdf
+##
+## [ Delete this chunk when we're under way ]
+##
+#################################
+
+---
+title: "UNKNOWN"
+output: html_document
+---
+
+# CSML1000 Project #2, by Group 8
+Tamer Hanna <tamerh@my.yorku.ca>
+Pete Gray <ptgray@my.yorku.ca>
+Xiaohai Lu <yu271637@my.yorku.ca>
+Haofeng Zhou <zhf85@my.yorku.ca>
+
+```{r message=FALSE, warning=FALSE}
+# Use R chunks like these, unless we determine otherwise
+```
+
+# BUSINESS UNDERSTANDING
+
+## Business Objectives
+## Assess situation
+## Determine Data Mining Goals
+
+
+# DATA UNDERSTANDING
+
+## Collect Initial Data
+## Describe Data
+## Explore Data
+## Verify Data Quality
+
+
+# DATA PREPARATION
+
+## Select Data
+## Clean Data
+## Construct Data
+## Integrate Data
+## Format Data
+
+
+# MODELING
+
+## Select Modeling Technique
+## Generate Test Design
+## Build Model Parameter Settings
+## Assess Model
+
+
+# EVALUATION
+
+## Evaluate Results
+## Approved Models
+## Determine Next Steps
+
+
+# DEPLOYMENT
+
+## Plan Deployment
+## Plan Monitoring and Maintenance
+## Produce Final Report -------------------------------  KNIT THIS .Rmd FILE WHEN DONE!!!!
+## Review Project
