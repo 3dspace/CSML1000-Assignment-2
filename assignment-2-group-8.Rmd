@@ -12,7 +12,7 @@
 #################################
 
 ---
-title: "UNKNOWN"
+title: "Clustering Credit Card Customers for Targeted Marketing using Unsupervised Learning"
 output: html_document
 ---
 
@@ -26,11 +26,23 @@ Haofeng Zhou <zhf85@my.yorku.ca>
 # Use R chunks like these, unless we determine otherwise
 ```
 
+#OVERVIEW
+
+Using data on the behaviour of credit card customers, we can use unsupervised learning to discover market segments that would be useful for targeting marketing strategies.
+
+Our dataset has 19 columns of data on 9000 customers. Using K-means and PCA, we can determine an optimal number of market segments, discover the identifying properties of those segments, and be able to describe to the marketing department what the most significant behaviours of the people in those segments are. Marketing campaigns, then, can be targeted at, for example, impulse shoppers, big spenders, or people who have a hard time paying off their debts.
+
 # BUSINESS UNDERSTANDING
 
+Applying specific marketing strategies to different types of customers can improve results and reduce costs. Credit card customers can be profiled by the way they use, and pay off, their card.
+
 ## Business Objectives
-## Assess situation
-## Determine Data Mining Goals
+
+Behavioural data can be mined to discover identifying features of clusters of customers who use their card in similar ways. The marketing department can use these insights to select target groups and optimize the marketing used to target them.
+ 
+## Data Mining Goals
+
+Using shallow algorithm unsupervised learning, we can discover clusters containing customers who exhibit similar behaviours. We can examine those 
 
 
 # DATA UNDERSTANDING
