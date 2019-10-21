@@ -1,15 +1,3 @@
-#################################
-##
-## GROUP 8, ASSIGNMENT #2, York CSML1000 Fall 2019 .Rmd Starter File with CRISP-DM.
-##
-## In this skeleton of a file, we outline the major steps of CRISP-DM, in the hopes of touching on as many
-## of the points as possible. (Some may be changed or combined along the way, but this is the roadmap.)
-##
-## Quick link to Assignment Specification: https://github.com/3dspace/CSML1000-Assignment-2/blob/master/specification-assignment-2.pdf
-##
-## [ Delete this chunk when we're under way ]
-##
-#################################
 
 ---
 title: "Clustering Credit Card Customers for Targeted Marketing using Unsupervised Learning"
@@ -23,10 +11,13 @@ Xiaohai Lu <yu271637@my.yorku.ca>
 Haofeng Zhou <zhf85@my.yorku.ca>
 
 ```{r message=FALSE, warning=FALSE}
-# Use R chunks like these, unless we determine otherwise
+library(dplyr);
+library(ggplot2);
+library(knitr);
+library(validate);
 ```
 
-#OVERVIEW
+# OVERVIEW
 
 Using data on the behaviour of credit card customers, we can use unsupervised learning to discover market segments that would be useful for targeting marketing strategies.
 
@@ -48,9 +39,128 @@ Using shallow algorithm unsupervised learning, we can discover clusters containi
 # DATA UNDERSTANDING
 
 ## Collect Initial Data
+
+```{r message=FALSE, warning=FALSE}
+#load data
+df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+```
+
+```{r message=FALSE, warning=FALSE}
+str(df)
+```
+
 ## Describe Data
+
+To be done.
+
 ## Explore Data
+
+Balance vs. Credit Limit - clearly correlated.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=BALANCE, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Balance vs. Credit Limit", x="Credit Limit", y="Balance") 
+```
+
+Maybe those who pay higher portion of balance purchase more one-offs?
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=PRC_FULL_PAYMENT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="One-off Purchase Frequency vs. Percent of full payment paid by user", x="Percent of full payment paid by user", y="One-off Purchase Frequency") 
+```
+
+Higher limit, more frequent purchases?
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchase Frequency vs. Credit Limit", x="Credit Limit", y="Purchase Frequency") 
+```
+
+Higher credit limit, more purchases?
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
+```
+
+Quite unclear, here.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Cash Advance Frequency vs. Credit Limit", x="Credit Limit", y="Cash Advance Frequency") 
+```
+
+Something funky about this one, though, it does suggest that those who purchase more, take fewer cash advances. Interesting.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=PURCHASES)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Cash Advance Frequency vs. Purchases", x="Purchases", y="Cash Advance Frequency") 
+```
+
+It would appear that those who pay off thier balance, do not take cash advances. No surprises, but a little hard to read because of the scale. 
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=PRC_FULL_PAYMENT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Cash Advance Frequency vs. Percent of full payment paid by user", x="Percent of full payment paid by user", y="Cash Advance Frequency") 
+```
+
+
+Good Graph! Higher credit limit, higher one-off purchases.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="One-off Purchase Frequency vs. Credit Limit", x="Credit Limit", y="One-off Purchase Frequency") 
+```
+
+How the hell do you get 120 Cash Advances? Anyway, looks like you don't make many purchases, if you do.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=CASH_ADVANCE_TRX, x=PURCHASES_TRX)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Number of Cash Advances vs. Number of Purchases", x="Number of Purchases", y="Number of Cash Advances") 
+```
+
+Perhaps not surprisingly, those with higher credit limits appear to make more purchases.
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES_TRX, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Number of Purchases vs. Credit Limit", x="Credit Limit", y="Number of Purchases") 
+```
+
 ## Verify Data Quality
+
+Check if data greater than zero.
+
+```{r message=FALSE, warning=FALSE}
+cf <- check_that(df, BALANCE > 0, BALANCE_FREQUENCY > 0, PURCHASES > 0, ONEOFF_PURCHASES > 0, INSTALLMENTS_PURCHASES > 0, CASH_ADVANCE > 0, PURCHASES_FREQUENCY > 0, ONEOFF_PURCHASES_FREQUENCY > 0, PURCHASES_INSTALLMENTS_FREQUENCY > 0, CASH_ADVANCE_FREQUENCY > 0, PURCHASES_TRX > 0, CREDIT_LIMIT > 0, MINIMUM_PAYMENTS > 0, PRC_FULL_PAYMENT > 0, TENURE > 0, BALANCE/CREDIT_LIMIT < 1)
+summary(cf)
+```
+
+Lots of zero! Check greater or equal:
+
+```{r message=FALSE, warning=FALSE}
+cf <- check_that(df, BALANCE >= 0, BALANCE_FREQUENCY >= 0, PURCHASES >= 0, ONEOFF_PURCHASES >= 0, INSTALLMENTS_PURCHASES >= 0, CASH_ADVANCE >= 0, PURCHASES_FREQUENCY >= 0, ONEOFF_PURCHASES_FREQUENCY >= 0, PURCHASES_INSTALLMENTS_FREQUENCY >= 0, CASH_ADVANCE_FREQUENCY >= 0, PURCHASES_TRX >= 0, CREDIT_LIMIT >= 0, MINIMUM_PAYMENTS >= 0, PRC_FULL_PAYMENT >= 0, TENURE >= 0, BALANCE/CREDIT_LIMIT <= 1)
+summary(cf)
+```
 
 
 # DATA PREPARATION
