@@ -48,16 +48,6 @@ Using shallow algorithm unsupervised learning, we can discover clusters containi
 # DATA UNDERSTANDING
 
 ## Collect Initial Data
-
-```{r message=FALSE, warning=FALSE}
-#load data
-df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
-```
-
-```{r message=FALSE, warning=FALSE}
-str(df)
-```
-
 ## Describe Data
 ## Explore Data
 ## Verify Data Quality
