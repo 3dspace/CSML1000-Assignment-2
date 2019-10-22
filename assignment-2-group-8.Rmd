@@ -40,10 +40,14 @@ Using shallow algorithm unsupervised learning, we can discover clusters containi
 
 ## Collect Initial Data
 
+Load the data from the local filesystem:
+
 ```{r message=FALSE, warning=FALSE}
 #load data
 df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
 ```
+
+Output a quick and dirty summary of the dataset, to ensure that we haven't loaded something scrambled, or the wrong thing:
 
 ```{r message=FALSE, warning=FALSE}
 str(df)
@@ -51,11 +55,13 @@ str(df)
 
 ## Describe Data
 
-To be done.
+TO BE DONE.
 
 ## Explore Data
 
-Balance vs. Credit Limit - clearly correlated.
+We'll plot some basic graphs, to ensure that the data conform to our limited domain understanding.
+
+Balance vs. Credit Limit - we would expect to find a strong correlation here, even if only because those with small credit limits must have small balances. We certainly find it.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=BALANCE, x=CREDIT_LIMIT)) + 
@@ -64,7 +70,7 @@ df %>% ggplot(aes(y=BALANCE, x=CREDIT_LIMIT)) +
   labs(title="Balance vs. Credit Limit", x="Credit Limit", y="Balance") 
 ```
 
-Maybe those who pay higher portion of balance purchase more one-offs?
+Maybe those who pay higher portion of balance purchase more one-offs? No, this graph is pretty junky and doesn't tell us anything.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=PRC_FULL_PAYMENT)) + 
@@ -73,7 +79,7 @@ df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=PRC_FULL_PAYMENT)) +
   labs(title="One-off Purchase Frequency vs. Percent of full payment paid by user", x="Percent of full payment paid by user", y="One-off Purchase Frequency") 
 ```
 
-Higher limit, more frequent purchases?
+Here we can see that there appears to be a correlation between a customers credit limit, and the frequency of their purchases. Not surprising, given that frequent purchasing is one factor that leads to an increased credit limit.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) + 
@@ -82,7 +88,7 @@ df %>% ggplot(aes(y=PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) +
   labs(title="Purchase Frequency vs. Credit Limit", x="Credit Limit", y="Purchase Frequency") 
 ```
 
-Higher credit limit, more purchases?
+Higher credit limit, more purchases? Maybe. This graph is an excellent showcase of "outliers". Only a small handful of the 9,000 records show a credit limit, or purchases, greater than $20,000. This will be one of our guiding intuitions when we get to the Data Cleaning phase.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
@@ -91,25 +97,7 @@ df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) +
   labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
 ```
 
-Quite unclear, here.
-
-```{r message=FALSE, warning=FALSE}
-df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=CREDIT_LIMIT)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Cash Advance Frequency vs. Credit Limit", x="Credit Limit", y="Cash Advance Frequency") 
-```
-
-Something funky about this one, though, it does suggest that those who purchase more, take fewer cash advances. Interesting.
-
-```{r message=FALSE, warning=FALSE}
-df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=PURCHASES)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Cash Advance Frequency vs. Purchases", x="Purchases", y="Cash Advance Frequency") 
-```
-
-It would appear that those who pay off thier balance, do not take cash advances. No surprises, but a little hard to read because of the scale. 
+It would appear that those who pay off thier balance, do not take cash advances. No surprises, but a little hard to read because of the scale. One thing that appears in this graphs is a large "column" of people who are completely unlikely to pay off their entire balance, and take cash advances with very high frequency. (It is likely that the marketing department may have less interest in these people, than in others. But we'll see!)
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=PRC_FULL_PAYMENT)) + 
@@ -118,8 +106,7 @@ df %>% ggplot(aes(y=CASH_ADVANCE_FREQUENCY, x=PRC_FULL_PAYMENT)) +
   labs(title="Cash Advance Frequency vs. Percent of full payment paid by user", x="Percent of full payment paid by user", y="Cash Advance Frequency") 
 ```
 
-
-Good Graph! Higher credit limit, higher one-off purchases.
+One last graph, as part of our data exploration and sanity check. This one shows that there is a clear corrleation between a customer's credit limit, and their frequency of one-off purchases. By now, we can be comfortable that our data isn't erratic, and that our limited domain knowledge isn't out to lunch.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) + 
@@ -128,45 +115,185 @@ df %>% ggplot(aes(y=ONEOFF_PURCHASES_FREQUENCY, x=CREDIT_LIMIT)) +
   labs(title="One-off Purchase Frequency vs. Credit Limit", x="Credit Limit", y="One-off Purchase Frequency") 
 ```
 
-How the hell do you get 120 Cash Advances? Anyway, looks like you don't make many purchases, if you do.
-
-```{r message=FALSE, warning=FALSE}
-df %>% ggplot(aes(y=CASH_ADVANCE_TRX, x=PURCHASES_TRX)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Number of Cash Advances vs. Number of Purchases", x="Number of Purchases", y="Number of Cash Advances") 
-```
-
-Perhaps not surprisingly, those with higher credit limits appear to make more purchases.
-
-```{r message=FALSE, warning=FALSE}
-df %>% ggplot(aes(y=PURCHASES_TRX, x=CREDIT_LIMIT)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Number of Purchases vs. Credit Limit", x="Credit Limit", y="Number of Purchases") 
-```
 
 ## Verify Data Quality
 
-Check if data greater than zero.
+Check if data greater than zero, look for missing data
 
 ```{r message=FALSE, warning=FALSE}
 cf <- check_that(df, BALANCE > 0, BALANCE_FREQUENCY > 0, PURCHASES > 0, ONEOFF_PURCHASES > 0, INSTALLMENTS_PURCHASES > 0, CASH_ADVANCE > 0, PURCHASES_FREQUENCY > 0, ONEOFF_PURCHASES_FREQUENCY > 0, PURCHASES_INSTALLMENTS_FREQUENCY > 0, CASH_ADVANCE_FREQUENCY > 0, PURCHASES_TRX > 0, CREDIT_LIMIT > 0, MINIMUM_PAYMENTS > 0, PRC_FULL_PAYMENT > 0, TENURE > 0, BALANCE/CREDIT_LIMIT < 1)
 summary(cf)
 ```
 
-Lots of zero! Check greater or equal:
+There appear to be a great number of zeroes. Let's look at that a little more closely:
+
+```{r message=FALSE, warning=FALSE}
+barplot(cf,main="Checks on the data set")
+```
+
+Lots of zero! Though, using our limitied knowledge of this domain, we can understand that this could be perfectly reasonable. In the first few lines of the above chart, we can see that a lot of people never make the full payment, a lot of people never get a cash advance, and some people didn't even make a purchase. Seems entirely reasonable. We can note too that the "zeroes" in PURCHASES_TRX, PURCHASES, and PURCHASES_FREQUENCY appear to be identical. In line with what we'd expect! 
+
+Now let's include zero, and see how it all stacks up for Greater OR Equal to zero:
 
 ```{r message=FALSE, warning=FALSE}
 cf <- check_that(df, BALANCE >= 0, BALANCE_FREQUENCY >= 0, PURCHASES >= 0, ONEOFF_PURCHASES >= 0, INSTALLMENTS_PURCHASES >= 0, CASH_ADVANCE >= 0, PURCHASES_FREQUENCY >= 0, ONEOFF_PURCHASES_FREQUENCY >= 0, PURCHASES_INSTALLMENTS_FREQUENCY >= 0, CASH_ADVANCE_FREQUENCY >= 0, PURCHASES_TRX >= 0, CREDIT_LIMIT >= 0, MINIMUM_PAYMENTS >= 0, PRC_FULL_PAYMENT >= 0, TENURE >= 0, BALANCE/CREDIT_LIMIT <= 1)
 summary(cf)
 ```
 
+Our only serious problems remaining are some N/As in Minimum Payment. We also see that a few people have a balance greater than their credit limit - this would not constitue a problem with the data. Simply a problem the customer in question is having. (Their balance is higher than their credit limit)
+
+```{r message=FALSE, warning=FALSE}
+barplot(cf,main="Checks on the data set")
+```
 
 # DATA PREPARATION
 
 ## Select Data
+
+We will attempt to use every morsel of data in this dataset.
+
 ## Clean Data
+
+During the Data Exploration phase, we discovered that of the 9,000 rows of data, there are a handful that have much higher values that all the rest. While we are certainly interested in these customers, they can be easily found without expensive machine learning. Simple code can be used to scrape off the customers with a credit limit, or purchases, higher than some amount.
+
+As we're hoping to come up with customer segments that are a significant portion of our customer base, perhaps containing hundreds or thousands of customers, let's look at "capping" some of these extreme values, to see if it moderates these few extreme outliers and suggests more patterns at a smaller scale.
+
+First, here's the graph that drew this to our attention:
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
+```
+
+Let's cap those two variables at $20,000 and see if it seems a little less crazy:
+
+```{r message=FALSE, warning=FALSE}
+df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
+df$PURCHASES[df$PURCHASES > 20000 ] <- 20000
+```
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
+```
+
+How about if we capped them at a smaller number, would it get silly? Or would it show us more variance inside the dense part of the distribution?
+
+```{r message=FALSE, warning=FALSE}
+df$CREDIT_LIMIT[df$CREDIT_LIMIT > 10000 ] <- 10000
+df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
+```
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
+```
+
+Well, I don't like that. Too many Credit Limits at or above 10,000. Though, that doesn't seem a problem with Purchases.
+
+Let's reset the data, and cap the values differently.
+
+```{r message=FALSE, warning=FALSE}
+#load data
+df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+ 
+df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
+df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
+ 
+df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
+```
+
+That seems much better, both for the purchases, and the credit limit.
+
+Let's look at one variable at a time, to ensure we haven't created a big distortion out at the high end:
+
+```{r message=FALSE, warning=FALSE}
+hist(df$CREDIT_LIMIT)
+```
+
+```{r message=FALSE, warning=FALSE}
+hist(df$PURCHASES)
+```
+
+Seems okay. Let's look at the distribution of some of the other big-value columns, to see how they look.
+
+```{r message=FALSE, warning=FALSE}
+hist(df$CASH_ADVANCE)
+```
+
+How about Payments?
+
+```{r message=FALSE, warning=FALSE}
+hist(df$PAYMENTS)
+```
+
+```{r message=FALSE, warning=FALSE}
+df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
+```
+
+Wow, that's some serious outliers. Let's cap them.
+
+```{r message=FALSE, warning=FALSE}
+df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+ 
+df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
+df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
+df$PAYMENTS[df$PAYMENTS > 12000 ] <- 12000
+df$CASH_ADVANCE[df$CASH_ADVANCE > 8000 ] <- 8000
+ 
+df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
+```
+
+How does this look, for the individual variables?
+
+```{r message=FALSE, warning=FALSE}
+hist(df$CASH_ADVANCE)
+```
+
+```{r message=FALSE, warning=FALSE}
+hist(df$PAYMENTS)
+```
+
+```{r message=FALSE, warning=FALSE}
+hist(df$BALANCE_FREQUENCY)
+```
+
+Well, this is silly. Let's try something a little more "brute".
+
+```{r message=FALSE, warning=FALSE}
+df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+ 
+# Prepare Data
+df <- na.omit(df) # listwise deletion of missing
+df$CUST_ID <- NULL
+df$PAYMENTS <- scale(df$PAYMENTS) # standardize variables
+df$CASH_ADVANCE <- scale(df$CASH_ADVANCE) # standardize variables
+ 
+df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
+```
+
+That's bullshit. Gonna delete that, and try harder at the other.
+
+Actually, a "dimensionality reduction" should be considered.
+
 ## Construct Data
 ## Integrate Data
 ## Format Data
