@@ -146,11 +146,46 @@ Our only serious problems remaining are some N/As in Minimum Payment. We also se
 barplot(cf,main="Checks on the data set")
 ```
 
+As a last look at the data, let's look at the variance of the individual columns.
+
+```{r message=FALSE, warning=FALSE}
+var(df$BALANCE) 
+var(df$BALANCE_FREQUENCY)               
+var(df$PURCHASES)                       
+var(df$ONEOFF_PURCHASES)                
+var(df$INSTALLMENTS_PURCHASES)          
+var(df$CASH_ADVANCE)                    
+var(df$PURCHASES_FREQUENCY)             
+var(df$ONEOFF_PURCHASES_FREQUENCY)      
+var(df$PURCHASES_INSTALLMENTS_FREQUENCY)
+var(df$CASH_ADVANCE_FREQUENCY)          
+var(df$CASH_ADVANCE_TRX)                
+var(df$PURCHASES_TRX)                   
+var(df$CREDIT_LIMIT)                    
+var(df$PAYMENTS)                        
+var(df$MINIMUM_PAYMENTS)                
+var(df$PRC_FULL_PAYMENT)                
+var(df$TENURE)
+```
+
+The data appear to have more information in the "amount" columns, and less in the "frequency" columns. We'll test this assumption when we try some modelling.
+
+
 # DATA PREPARATION
 
 ## Select Data
 
-We will attempt to use every morsel of data in this dataset.
+We saw that MINIMUM_PAYMENTS is riddled with N/As, so let's remove that column. This should be compatible with our Business Objectives, as we're hoping to get people to spend, rather than optimize their repayments.
+
+```{r message=FALSE, warning=FALSE}
+df$MINIMUM_PAYMENTS <- NULL
+```
+
+There was one nasty little N/A in CREDIT_LIMIT, let's remove that row so we can use that column.
+
+```{r message=FALSE, warning=FALSE}
+df <- na.omit(df)
+```
 
 ## Clean Data
 
@@ -172,9 +207,6 @@ Let's cap those two variables at $20,000 and see if it seems a little less crazy
 ```{r message=FALSE, warning=FALSE}
 df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
 df$PURCHASES[df$PURCHASES > 20000 ] <- 20000
-```
-
-```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
   geom_point() + 
   geom_smooth(method = lm, se = FALSE) + 
@@ -186,9 +218,6 @@ How about if we capped them at a smaller number, would it get silly? Or would it
 ```{r message=FALSE, warning=FALSE}
 df$CREDIT_LIMIT[df$CREDIT_LIMIT > 10000 ] <- 10000
 df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
-```
-
-```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
   geom_point() + 
   geom_smooth(method = lm, se = FALSE) + 
@@ -227,7 +256,7 @@ hist(df$PURCHASES)
 Seems okay. Let's look at the distribution of some of the other big-value columns, to see how they look.
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$CASH_ADVANCE)
+hist(df$BALANCE)
 ```
 
 How about Payments?
@@ -270,31 +299,15 @@ hist(df$PAYMENTS)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$BALANCE_FREQUENCY)
+hist(df$CREDIT_LIMIT)
 ```
-
-Well, this is silly. Let's try something a little more "brute".
-
-```{r message=FALSE, warning=FALSE}
-df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
- 
-# Prepare Data
-df <- na.omit(df) # listwise deletion of missing
-df$CUST_ID <- NULL
-df$PAYMENTS <- scale(df$PAYMENTS) # standardize variables
-df$CASH_ADVANCE <- scale(df$CASH_ADVANCE) # standardize variables
- 
-df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
-```
-
-That's bullshit. Gonna delete that, and try harder at the other.
-
-Actually, a "dimensionality reduction" should be considered.
 
 ## Construct Data
+
+```{r message=FALSE, warning=FALSE}
+df <- na.omit(df)
+```
+
 ## Integrate Data
 ## Format Data
 
@@ -302,10 +315,72 @@ Actually, a "dimensionality reduction" should be considered.
 # MODELING
 
 ## Select Modeling Technique
-## Generate Test Design
-## Build Model Parameter Settings
-## Assess Model
 
+K-Means, we try first.
+
+## Generate Test Design
+
+# Determine number of clusters
+
+```{r message=FALSE, warning=FALSE}
+
+cld <- df[c(2:14)]
+
+wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cld,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
+
+```{r message=FALSE, warning=FALSE}
+
+cld <- df[c(2,4:7, 14)]
+
+wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cld,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
+
+Sure, but how does this look WITHOUT all that capping?
+
+```{r message=FALSE, warning=FALSE}
+
+df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+df <- na.omit(df)
+cld <- df[c(2,4:7,14)]
+
+wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cld,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
+
+
+
+
+
+
+
+## Build Model Parameter Settings
+
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit <- kmeans(cld, 6) # 6 cluster solution
+# get cluster means
+aggregate(cld,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+cld <- data.frame(cld, fit$cluster)
+## Assess Model
+```
+
+Well, I'll be dipped. This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders, Cash Advancers, Balance Carriers, Balance Payers, Light Users, and Everybody Else (Average Joes)
 
 # EVALUATION
 
