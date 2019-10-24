@@ -231,6 +231,8 @@ Let's reset the data, and cap the values differently.
 ```{r message=FALSE, warning=FALSE}
 #load data
 df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+df$MINIMUM_PAYMENTS <- NULL
+df <- na.omit(df)
  
 df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
 df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
@@ -253,17 +255,7 @@ hist(df$CREDIT_LIMIT)
 hist(df$PURCHASES)
 ```
 
-Seems okay. Let's look at the distribution of some of the other big-value columns, to see how they look.
-
-```{r message=FALSE, warning=FALSE}
-hist(df$BALANCE)
-```
-
-How about Payments?
-
-```{r message=FALSE, warning=FALSE}
-hist(df$PAYMENTS)
-```
+Seems okay. Let's look at the distribution of some of the other big-value columns that we're most interested in, to see how they look.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
@@ -275,12 +267,9 @@ df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) +
 Wow, that's some serious outliers. Let's cap them.
 
 ```{r message=FALSE, warning=FALSE}
-df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
- 
-df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
-df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
+
 df$PAYMENTS[df$PAYMENTS > 12000 ] <- 12000
-df$CASH_ADVANCE[df$CASH_ADVANCE > 8000 ] <- 8000
+df$CASH_ADVANCE[df$CASH_ADVANCE > 25000 ] <- 25000
  
 df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
   geom_point() + 
@@ -288,25 +277,33 @@ df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) +
   labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
 ```
 
-How does this look, for the individual variables?
+Two more columns we're very interested in using need to be check for this:
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$CASH_ADVANCE)
+df %>% ggplot(aes(y=ONEOFF_PURCHASES, x=INSTALLMENTS_PURCHASES)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="ONEOFF_PURCHASES vs. INSTALLMENTS_PURCHASES", x="INSTALLMENTS_PURCHASES", y="ONEOFF_PURCHASES") 
 ```
 
-```{r message=FALSE, warning=FALSE}
-hist(df$PAYMENTS)
-```
+A very few extreme outliers. Let's bring them a little closer to the group:
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$CREDIT_LIMIT)
+
+df$ONEOFF_PURCHASES[df$ONEOFF_PURCHASES > 12000 ] <- 12000
+df$INSTALLMENTS_PURCHASES[df$INSTALLMENTS_PURCHASES > 8000 ] <- 8000
+
+df %>% ggplot(aes(y=ONEOFF_PURCHASES, x=INSTALLMENTS_PURCHASES)) + 
+  geom_point() + 
+  geom_smooth(method = lm, se = FALSE) + 
+  labs(title="ONEOFF_PURCHASES vs. INSTALLMENTS_PURCHASES", x="INSTALLMENTS_PURCHASES", y="ONEOFF_PURCHASES") 
 ```
+
+Let us try with this, and we can compare it to fresh, uncapped data when we get to modelling.
 
 ## Construct Data
 
-```{r message=FALSE, warning=FALSE}
-df <- na.omit(df)
-```
+
 
 ## Integrate Data
 ## Format Data
@@ -322,53 +319,55 @@ K-Means, we try first.
 
 # Determine number of clusters
 
+Run tests on various numbers of clusters to look for an "elbow" which will suggest how many useful clusters we can hope to get from this data.
+
+First, we'll do it with many columns, so we can compare to much smaller number more of our choosing.
+
 ```{r message=FALSE, warning=FALSE}
 
 cld <- df[c(2:14)]
 
 wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(cld,
+for (i in 2:10) wss[i] <- sum(kmeans(cld,
    centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters",
+plot(1:10, wss, type="b", xlab="Number of Clusters",
   ylab="Within groups sum of squares") 
  
 ```
+
+Here's the same test, but performed only with BALANCE, PURCHASES, ONEOFF_PURCHASES, INSTALLMENTS_PURCHASES, and CASH_ADVANCE.
+
+```{r message=FALSE, warning=FALSE}
+
+cld <- df[c(2,4:7)]
+
+wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
+for (i in 2:10) wss[i] <- sum(kmeans(cld,
+   centers=i)$withinss)
+plot(1:10, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
+
+We've definitely lost some of our predicting power with only those columns - let's add CREDIT_LIMIT back in to see if that helps:
 
 ```{r message=FALSE, warning=FALSE}
 
 cld <- df[c(2,4:7, 14)]
 
 wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(cld,
+for (i in 2:10) wss[i] <- sum(kmeans(cld,
    centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters",
+plot(1:10, wss, type="b", xlab="Number of Clusters",
   ylab="Within groups sum of squares") 
  
 ```
 
-Sure, but how does this look WITHOUT all that capping?
+This is surprisingly similar to the graph we obtained using 12 rows above.
 
-```{r message=FALSE, warning=FALSE}
+In terms of how many clusters we should choose, these graphs could be suggesting anywhere from 4 to 7, depending on how we read them. We'll try a few things.
 
-df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
-df <- na.omit(df)
-cld <- df[c(2,4:7,14)]
-
-wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(cld,
-   centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters",
-  ylab="Within groups sum of squares") 
- 
-```
-
-
-
-
-
-
-
-## Build Model Parameter Settings
+Here's one with 6 clusters:
 
 ```{r message=FALSE, warning=FALSE}
 # K-Means Cluster Analysis
@@ -380,9 +379,72 @@ cld <- data.frame(cld, fit$cluster)
 ## Assess Model
 ```
 
-Well, I'll be dipped. This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders, Cash Advancers, Balance Carriers, Balance Payers, Light Users, and Everybody Else (Average Joes)
+Sure, but how does this look WITHOUT all that capping?
+
+```{r message=FALSE, warning=FALSE}
+
+df0 <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+df0 <- na.omit(df0)
+cld2 <- df0[c(2,4:7,14)]
+
+wss <- (nrow(cld2)-1)*sum(apply(cld2,2,var))
+for (i in 2:10) wss[i] <- sum(kmeans(cld2,
+   centers=i)$withinss)
+plot(1:10, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
+
+And a clustering into 6, with the uncapped data, yeilds almost identical results.
+
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit <- kmeans(cld2, 6) # 6 cluster solution
+# get cluster means
+aggregate(cld2,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+cld2 <- data.frame(cld2, fit$cluster)
+## Assess Model
+```
+
+This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders, Cash Advancers, Smaller Cash Advancers, Balance Carriers, Balance Payers, and Light Users.
+
+It is interesting that whether or not we cap, with 6 clusters, we get two groups of "cash advancers", which differ only in terms of credit limit.
+
+Let's do one with 5 clusters:
+
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit <- kmeans(cld, 5) # 5 cluster solution
+# get cluster means
+aggregate(cld,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+cld <- data.frame(cld, fit$cluster)
+## Assess Model
+```
+
+This seems cleaner and easier to interpret. Big Spenders, Cash Advancers,
+
+And lastly one with 4 clusters:
+
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit <- kmeans(cld, 4) # 4 cluster solution
+# get cluster means
+aggregate(cld,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+cld <- data.frame(cld, fit$cluster)
+## Assess Model
+```
+
+This only seems to give us Cash Advancers, and Small, Medium, and Large spenders. Very accurately predicted, I'm sure, but not as useful as the clusters we got with 5 and 6 clusters.
+
+
+
 
 # EVALUATION
+
+Evaluation? Coming soon.
 
 ## Evaluate Results
 ## Approved Models
