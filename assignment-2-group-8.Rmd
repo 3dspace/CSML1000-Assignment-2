@@ -15,6 +15,11 @@ library(dplyr);
 library(ggplot2);
 library(knitr);
 library(validate);
+library(tidyverse);  # data manipulation
+library(cluster);    # clustering algorithms
+
+
+
 ```
 
 # OVERVIEW
@@ -438,6 +443,49 @@ cld <- data.frame(cld, fit$cluster)
 ```
 
 This only seems to give us Cash Advancers, and Small, Medium, and Large spenders. Very accurately predicted, I'm sure, but not as useful as the clusters we got with 5 and 6 clusters.
+
+Let's try to export that 6 cluster version as an .rda file for use in the Shiny App:
+
+```{r message=FALSE, warning=FALSE}
+dfx <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
+dfx <- na.omit(dfx)
+clx <- dfx[c(2,4:7,14)]
+
+wss <- (nrow(clx)-1)*sum(apply(clx,2,var))
+for (i in 2:10) wss[i] <- sum(kmeans(clx,
+   centers=i)$withinss)
+plot(1:10, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+# K-Means Cluster Analysis
+fit <- kmeans(clx, 6) # 6 cluster solution
+# get cluster means
+aggregate(clx,by=list(fit$cluster),FUN=mean)
+# append cluster assignment
+clx <- data.frame(clx, fit$cluster)
+## Assess Model
+#save(clx , file = 'CreditCardBehaviour6Clusters.rda')
+```
+
+
+
+
+
+
+
+#first scaling the data
+dft <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = TRUE, header = TRUE, encoding  = "UTF-8")
+dft <- dft[,-1]
+dft <- na.omit(dft)
+scaled.dft <- scale(dft)
+
+# Credit Card user  matrix
+scaled.dft <- dist(scaled.dft, method = "euclidean")
+
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(scaled.dft, method = "average" )
+
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.9, hang = -2)
 
 
 
