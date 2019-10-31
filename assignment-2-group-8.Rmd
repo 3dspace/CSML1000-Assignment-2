@@ -414,67 +414,37 @@ This will allow us to compare the resulting models easily, and determine which d
 
 ## Generate Test Design
 
+# Model #1 - clean data with capped outliers.
 
+The best thing about this model was that we were able to generate it quickly, and use it to build up the first implementations of our Shiny App. We do have high hopes that our more advanced models will yeild better results. We shall check that assumption!
 
 # Determine number of clusters
 
 Run tests on various numbers of clusters to look for an "elbow" which will suggest how many useful clusters we can hope to get from this data.
 
-First, we'll do it with many columns, so we can compare to much smaller number more of our choosing.
-
 ```{r message=FALSE, warning=FALSE}
 
-cld <- scaled_df[c(2:14)]
+cluster_data_1 <- df_capped[c(2,4:7, 14)]
 
-wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:10) wss[i] <- sum(kmeans(cld,
+wss <- (nrow(cluster_data_1)-1)*sum(apply(cluster_data_1,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cluster_data_1,
    centers=i)$withinss)
-plot(1:10, wss, type="b", xlab="Number of Clusters",
+plot(1:15, wss, type="b", xlab="Number of Clusters",
   ylab="Within groups sum of squares") 
  
 ```
 
-Here's the same test, but performed only with BALANCE, PURCHASES, ONEOFF_PURCHASES, INSTALLMENTS_PURCHASES, and CASH_ADVANCE.
-
-```{r message=FALSE, warning=FALSE}
-
-cld <- scaled_df[c(2,4:7)]
-
-wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:10) wss[i] <- sum(kmeans(cld,
-   centers=i)$withinss)
-plot(1:10, wss, type="b", xlab="Number of Clusters",
-  ylab="Within groups sum of squares") 
- 
-```
-
-We've definitely lost some of our predicting power with only those columns - let's add CREDIT_LIMIT back in to see if that helps:
-
-```{r message=FALSE, warning=FALSE}
-
-cld <- scaled_df[c(2,4:7, 14)]
-
-wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
-for (i in 2:10) wss[i] <- sum(kmeans(cld,
-   centers=i)$withinss)
-plot(1:10, wss, type="b", xlab="Number of Clusters",
-  ylab="Within groups sum of squares") 
- 
-```
-
-This is surprisingly similar to the graph we obtained using 12 rows above.
-
-In terms of how many clusters we should choose, these graphs could be suggesting anywhere from 4 to 7, depending on how we read them. We'll try a few things.
+In terms of how many clusters we should choose, these graphs could be suggesting anywhere from 4 to 7, depending on how we read them.
 
 Here's one with 6 clusters:
 
 ```{r message=FALSE, warning=FALSE}
 # K-Means Cluster Analysis
-fit <- kmeans(cld, 6) # 6 cluster solution
+fit <- kmeans(cluster_data_1, 6) # 6 cluster solution
 # get cluster means
-aggregate(cld,by=list(fit$cluster),FUN=mean)
+aggregate(cluster_data_1,by=list(fit$cluster),FUN=mean)
 # append cluster assignment
-cld <- data.frame(cld, fit$cluster)
+cluster_data_1 <- data.frame(cluster_data_1, fit$cluster)
 ## Assess Model
 ```
 
@@ -510,34 +480,6 @@ This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders,
 
 It is interesting that whether or not we cap, with 6 clusters, we get two groups of "cash advancers", which differ only in terms of credit limit.
 
-Let's do one with 5 clusters:
-
-```{r message=FALSE, warning=FALSE}
-# K-Means Cluster Analysis
-fit <- kmeans(cld, 5) # 5 cluster solution
-# get cluster means
-aggregate(cld,by=list(fit$cluster),FUN=mean)
-# append cluster assignment
-cld <- data.frame(cld, fit$cluster)
-## Assess Model
-```
-
-This seems cleaner and easier to interpret. Big Spenders, Cash Advancers,
-
-And lastly one with 4 clusters:
-
-```{r message=FALSE, warning=FALSE}
-# K-Means Cluster Analysis
-fit <- kmeans(cld, 4) # 4 cluster solution
-# get cluster means
-aggregate(cld,by=list(fit$cluster),FUN=mean)
-# append cluster assignment
-cld <- data.frame(cld, fit$cluster)
-## Assess Model
-```
-
-This only seems to give us Cash Advancers, and Small, Medium, and Large spenders. Very accurately predicted, I'm sure, but not as useful as the clusters we got with 5 and 6 clusters.
-
 Let's try to export that 6 cluster version as an .rda file for use in the Shiny App:
 
 ```{r message=FALSE, warning=FALSE}
@@ -560,44 +502,79 @@ clx <- data.frame(clx, fit$cluster)
 #save(clx , file = 'CreditCardBehaviour6Clusters.rda')
 ```
 
+# Model 2 - With hackishly scaled data
 
+```{r message=FALSE, warning=FALSE}
 
+cluster_data_2 <- hackish_scaled_df[c(2,4:11, 14)]
 
-# Compute
-library("NbClust")
-scaled_df.NbClust <- scaled_df
-
-NbClust(scaled_df, diss=NULL, distance = "euclidean", min.nc=1, max.nc=10, 
-            method = "complete", index = "kl") 
-
-
-
-clus_df <- scaled_df [c(2:14)]
-
-
-
-
-# Gap statistic
-# nboot = 50 to keep the function speedy. 
-# recommended value: nboot= 500 for your analysis.
-# Use verbose = FALSE to hide computing progression.
-set.seed(123)
-fviz_nbclust(clus_df, kmeans, nstart = 25,  method = "gap_stat", nboot = 20)+
-  labs(subtitle = "Gap statistic method")
-
-
-
-```{r}
-
+wss <- (nrow(cluster_data_2)-1)*sum(apply(cluster_data_2,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cluster_data_2,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
 ```
 
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit_2 <- kmeans(cluster_data_2, 6) # 6 cluster solution
+# get cluster means
+aggregate(cluster_data_2,by=list(fit_2$cluster),FUN=mean)
+# append cluster assignment
+cluster_data_2 <- data.frame(cluster_data_2, fit_2$cluster)
+## Assess Model
+```
 
+And Let's try that with 8 clusters, to see if we can make use of that:
 
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit_2_8 <- kmeans(cluster_data_2, 8) # 8 cluster solution
+# get cluster means
+aggregate(cluster_data_2,by=list(fit_2_8$cluster),FUN=mean)
+# append cluster assignment
+cluster_data_2 <- data.frame(cluster_data_2, fit_2_8$cluster)
+## Save Model
+save(fit_2_8 , file = 'CreditCardBehaviour8Clusters.rda')
+```
 
+# Model 3 - With formally scaled data
 
+```{r message=FALSE, warning=FALSE}
 
+cluster_data_3 <- scaled_df[c(2,4:11, 14)]
 
+wss <- (nrow(cluster_data_3)-1)*sum(apply(cluster_data_3,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(cluster_data_3,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares") 
+ 
+```
 
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit_3 <- kmeans(cluster_data_3, 8) # 8 cluster solution
+# get cluster means
+aggregate(cluster_data_3,by=list(fit_3$cluster),FUN=mean)
+# append cluster assignment
+cluster_data_3 <- data.frame(cluster_data_3, fit_3$cluster)
+## Assess Model
+```
+
+And Let's try that with 11 clusters, to see if we can make use of that:
+
+```{r message=FALSE, warning=FALSE}
+# K-Means Cluster Analysis
+fit_3_11 <- kmeans(cluster_data_3, 11) # 11 cluster solution
+# get cluster means
+aggregate(cluster_data_3,by=list(fit_3_11$cluster),FUN=mean)
+# append cluster assignment
+cluster_data_3 <- data.frame(cluster_data_3, fit_3_11$cluster)
+## Save Model
+#save(fit_3_11 , file = 'CreditCardBehaviour11Clusters.rda')
+```
 
 # EVALUATION
 
