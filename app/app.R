@@ -53,7 +53,7 @@ server <- function(input, output) {
     observeEvent(input$submit, {
         #finalVal = input$balance + input$purchases + input$oneoff + input$installments + input$cash + input$credit
         testDf <- data.frame(c(input$balance),  c(input$purchases),  c(input$oneoff),  c(input$installments),  c(input$cash),  c(input$credit))
-        finalVal = predict(km, newdata=testDf)
+        finalVal = predict(model2, newdata=testDf)
         print(finalVal)
         output$predictVal <- renderText({finalVal})
     })
