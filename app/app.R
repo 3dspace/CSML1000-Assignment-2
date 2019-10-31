@@ -14,6 +14,7 @@ library(knitr);
 library(validate);
 library(tidyverse);  # data manipulation
 library(cluster); 
+library(flexclust);
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
@@ -46,10 +47,14 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-    model2 <- readRDS("./CreditCardBehaviour6Clusters-2.rda")
+    #model2 <- readRDS("./CreditCardBehaviour6Clusters-2.rda")
+    model2 <- readRDS("./can-predict-2.rda")
+    
     observeEvent(input$submit, {
-        finalVal = input$balance + input$purchases + input$oneoff + input$installments + input$cash + input$credit
-        print("hello")
+        #finalVal = input$balance + input$purchases + input$oneoff + input$installments + input$cash + input$credit
+        testDf <- data.frame(c(input$balance),  c(input$purchases),  c(input$oneoff),  c(input$installments),  c(input$cash),  c(input$credit))
+        finalVal = predict(km, newdata=testDf)
+        print(finalVal)
         output$predictVal <- renderText({finalVal})
     })
 }
