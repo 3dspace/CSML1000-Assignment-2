@@ -1,7 +1,10 @@
 
 ---
-title: "Clustering Credit Card Customers for Targeted Marketing using Unsupervised Learning"
-output: html_document
+title: Clustering Credit Card Customers for Targeted Marketing using Unsupervised
+  Learning
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 # CSML1000 Project #2, by Group 8
@@ -17,6 +20,9 @@ library(knitr);
 library(validate);
 library(tidyverse);  # data manipulation
 library(cluster);    # clustering algorithms
+library(clusterSim);
+library(factoextra);
+
 
 
 
@@ -173,7 +179,7 @@ var(df$PRC_FULL_PAYMENT)
 var(df$TENURE)
 ```
 
-The data appear to have more information in the "amount" columns, and less in the "frequency" columns. We'll test this assumption when we try some modelling.
+As expected, there is a big difference in the variance, between the different types of data. Dollar amounts are huge, and have huge variance. Transaction frequencies are small, and have small variance. As our ideal investigation into this dataset would involve clustering and predicting based on both types of values, we anticipate scaling some or all of the data columns we will be using, so that our algorithm can give comparable consideration to all of them.
 
 
 # DATA PREPARATION
@@ -186,17 +192,36 @@ We saw that MINIMUM_PAYMENTS is riddled with N/As, so let's remove that column. 
 df$MINIMUM_PAYMENTS <- NULL
 ```
 
-There was one nasty little N/A in CREDIT_LIMIT, let's remove that row so we can use that column.
+And let's check that worked:
+
+```{r message=FALSE, warning=FALSE}
+cf <- check_that(df, BALANCE >= 0, BALANCE_FREQUENCY >= 0, PURCHASES >= 0, ONEOFF_PURCHASES >= 0, INSTALLMENTS_PURCHASES >= 0, CASH_ADVANCE >= 0, PURCHASES_FREQUENCY >= 0, ONEOFF_PURCHASES_FREQUENCY >= 0, PURCHASES_INSTALLMENTS_FREQUENCY >= 0, CASH_ADVANCE_FREQUENCY >= 0, PURCHASES_TRX >= 0, CREDIT_LIMIT >= 0, MINIMUM_PAYMENTS >= 0, PRC_FULL_PAYMENT >= 0, TENURE >= 0, BALANCE/CREDIT_LIMIT <= 1)
+summary(cf)
+```
+
+There were some N/As in CREDIT_LIMIT, but we'd really like to use that column in our clusterings and predicitons. let's remove those rows so we can use that column.
 
 ```{r message=FALSE, warning=FALSE}
 df <- na.omit(df)
 ```
+
+Let's check that we haven't misunderstood that N/A, or the code we used to remove it, and accidentally ransacked the data we're using with that move - looks good.
+
+```{r message=FALSE, warning=FALSE}
+cf <- check_that(df, BALANCE >= 0, BALANCE_FREQUENCY >= 0, PURCHASES >= 0, ONEOFF_PURCHASES >= 0, INSTALLMENTS_PURCHASES >= 0, CASH_ADVANCE >= 0, PURCHASES_FREQUENCY >= 0, ONEOFF_PURCHASES_FREQUENCY >= 0, PURCHASES_INSTALLMENTS_FREQUENCY >= 0, CASH_ADVANCE_FREQUENCY >= 0, PURCHASES_TRX >= 0, CREDIT_LIMIT >= 0, MINIMUM_PAYMENTS >= 0, PRC_FULL_PAYMENT >= 0, TENURE >= 0, BALANCE/CREDIT_LIMIT <= 1)
+summary(cf)
+```
+
 
 ## Clean Data
 
 During the Data Exploration phase, we discovered that of the 9,000 rows of data, there are a handful that have much higher values that all the rest. While we are certainly interested in these customers, they can be easily found without expensive machine learning. Simple code can be used to scrape off the customers with a credit limit, or purchases, higher than some amount.
 
 As we're hoping to come up with customer segments that are a significant portion of our customer base, perhaps containing hundreds or thousands of customers, let's look at "capping" some of these extreme values, to see if it moderates these few extreme outliers and suggests more patterns at a smaller scale.
+
+```{r message=FALSE, warning=FALSE}
+df_capped <- df
+```
 
 First, here's the graph that drew this to our attention:
 
@@ -210,57 +235,28 @@ df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) +
 Let's cap those two variables at $20,000 and see if it seems a little less crazy:
 
 ```{r message=FALSE, warning=FALSE}
-df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
-df$PURCHASES[df$PURCHASES > 20000 ] <- 20000
-df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
+df_capped$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
+df_capped$PURCHASES[df$PURCHASES > 20000 ] <- 20000
+df_capped %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
   geom_point() + 
   geom_smooth(method = lm, se = FALSE) + 
   labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
 ```
 
-How about if we capped them at a smaller number, would it get silly? Or would it show us more variance inside the dense part of the distribution?
-
-```{r message=FALSE, warning=FALSE}
-df$CREDIT_LIMIT[df$CREDIT_LIMIT > 10000 ] <- 10000
-df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
-df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
-```
-
-Well, I don't like that. Too many Credit Limits at or above 10,000. Though, that doesn't seem a problem with Purchases.
-
-Let's reset the data, and cap the values differently.
-
-```{r message=FALSE, warning=FALSE}
-#load data
-df <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
-df$MINIMUM_PAYMENTS <- NULL
-df <- na.omit(df)
- 
-df$CREDIT_LIMIT[df$CREDIT_LIMIT > 20000 ] <- 20000
-df$PURCHASES[df$PURCHASES > 10000 ] <- 10000
- 
-df %>% ggplot(aes(y=PURCHASES, x=CREDIT_LIMIT)) + 
-  geom_point() + 
-  geom_smooth(method = lm, se = FALSE) + 
-  labs(title="Purchases vs. Credit Limit", x="Credit Limit", y="Purchases") 
-```
 
 That seems much better, both for the purchases, and the credit limit.
 
 Let's look at one variable at a time, to ensure we haven't created a big distortion out at the high end:
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$CREDIT_LIMIT)
+hist(df_capped$CREDIT_LIMIT)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-hist(df$PURCHASES)
+hist(df_capped$PURCHASES)
 ```
 
-Seems okay. Let's look at the distribution of some of the other big-value columns that we're most interested in, to see how they look.
+Seems okay. The distortions appear small. Let's look at the distribution of some of the other big-value columns that we're most interested in, to see how they look.
 
 ```{r message=FALSE, warning=FALSE}
 df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
@@ -271,12 +267,14 @@ df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) +
 
 Wow, that's some serious outliers. Let's cap them.
 
+We'll continue to use 20,000, to keep things simple, unless something suggests either that we're affecting large numbers of data points, or not budging even a handful.
+
 ```{r message=FALSE, warning=FALSE}
 
-df$PAYMENTS[df$PAYMENTS > 12000 ] <- 12000
-df$CASH_ADVANCE[df$CASH_ADVANCE > 25000 ] <- 25000
+df_capped$PAYMENTS[df$PAYMENTS > 20000 ] <- 20000
+df_capped$CASH_ADVANCE[df$CASH_ADVANCE > 20000 ] <- 20000
  
-df %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
+df_capped %>% ggplot(aes(y=PAYMENTS, x=CASH_ADVANCE)) + 
   geom_point() + 
   geom_smooth(method = lm, se = FALSE) + 
   labs(title="Payments vs. Cash Advances", x="Cash Advances", y="Payments") 
@@ -291,36 +289,132 @@ df %>% ggplot(aes(y=ONEOFF_PURCHASES, x=INSTALLMENTS_PURCHASES)) +
   labs(title="ONEOFF_PURCHASES vs. INSTALLMENTS_PURCHASES", x="INSTALLMENTS_PURCHASES", y="ONEOFF_PURCHASES") 
 ```
 
-A very few extreme outliers. Let's bring them a little closer to the group:
+A very few extreme outliers. In this case, 20,000 will hardly touch these - let's cap these two at 10,000.
 
 ```{r message=FALSE, warning=FALSE}
 
-df$ONEOFF_PURCHASES[df$ONEOFF_PURCHASES > 12000 ] <- 12000
-df$INSTALLMENTS_PURCHASES[df$INSTALLMENTS_PURCHASES > 8000 ] <- 8000
+df_capped$ONEOFF_PURCHASES[df$ONEOFF_PURCHASES > 10000 ] <- 10000
+df_capped$INSTALLMENTS_PURCHASES[df$INSTALLMENTS_PURCHASES > 10000 ] <- 10000
 
-df %>% ggplot(aes(y=ONEOFF_PURCHASES, x=INSTALLMENTS_PURCHASES)) + 
+df_capped %>% ggplot(aes(y=ONEOFF_PURCHASES, x=INSTALLMENTS_PURCHASES)) + 
   geom_point() + 
   geom_smooth(method = lm, se = FALSE) + 
   labs(title="ONEOFF_PURCHASES vs. INSTALLMENTS_PURCHASES", x="INSTALLMENTS_PURCHASES", y="ONEOFF_PURCHASES") 
 ```
 
-Let us try with this, and we can compare it to fresh, uncapped data when we get to modelling.
+Let's look at the range of the parameters, to make sure they've wound up how we were expecting:
+
+```{r}
+range(df_capped$BALANCE) 
+range(df_capped$BALANCE_FREQUENCY)               
+range(df_capped$PURCHASES)                       
+range(df_capped$ONEOFF_PURCHASES)                
+range(df_capped$INSTALLMENTS_PURCHASES)          
+range(df_capped$CASH_ADVANCE)                    
+range(df_capped$PURCHASES_FREQUENCY)             
+range(df_capped$ONEOFF_PURCHASES_FREQUENCY)      
+range(df_capped$PURCHASES_INSTALLMENTS_FREQUENCY)
+range(df_capped$CASH_ADVANCE_FREQUENCY)          
+range(df_capped$CASH_ADVANCE_TRX)                
+range(df_capped$PURCHASES_TRX)                   
+range(df_capped$CREDIT_LIMIT)                    
+range(df_capped$PAYMENTS)                        
+#range(df$MINIMUM_PAYMENTS)    - doesn't work as "null".            
+range(df_capped$PRC_FULL_PAYMENT)                
+range(df_capped$TENURE)
+```
+
 
 ## Construct Data
 
+We wish to try three different approaches to the inputs for our model.
 
+1) A simple model, using only dollar values, capped to reduce the impact of outliers. (df_capped)
 
-## Integrate Data
-## Format Data
+2) A preliminary "hack" of scaling the data, for easy interpretation of our scaled values, that will allow training and prediction based on both dollar amounts and frequencies of transactions.
+
+3) More rigourously scaled data, which we may or may not use in our Shiny app due to time constraints and the thrill of mapping our sample input values into the distribution of the scaled data.
+
+Let's do the basic, hackish scaling:
+
+```{r}
+hackish_scaled_df <- df_capped
+hackish_scaled_df$BALANCE <- df_capped$BALANCE/20000
+hackish_scaled_df$PURCHASES <- df_capped$PURCHASES/20000
+hackish_scaled_df$ONEOFF_PURCHASES <- df_capped$ONEOFF_PURCHASES/10000
+hackish_scaled_df$INSTALLMENTS_PURCHASES <- df_capped$INSTALLMENTS_PURCHASES/10000
+hackish_scaled_df$CASH_ADVANCE <- df_capped$CASH_ADVANCE/20000
+hackish_scaled_df$CREDIT_LIMIT <- df_capped$CREDIT_LIMIT/20000
+```
+
+```{r}
+range(hackish_scaled_df$BALANCE) 
+range(hackish_scaled_df$PURCHASES) 
+range(hackish_scaled_df$ONEOFF_PURCHASES) 
+range(hackish_scaled_df$INSTALLMENTS_PURCHASES) 
+range(hackish_scaled_df$CASH_ADVANCE) 
+range(hackish_scaled_df$CREDIT_LIMIT) 
+# And the frequency variables, which are pre-scaled, for comparison:
+range(hackish_scaled_df$PURCHASES_FREQUENCY)             
+range(hackish_scaled_df$ONEOFF_PURCHASES_FREQUENCY)      
+range(hackish_scaled_df$PURCHASES_INSTALLMENTS_FREQUENCY)
+range(hackish_scaled_df$CASH_ADVANCE_FREQUENCY) 
+```
+
+Now we will do a formal scaling. This can be compared to the hackish one above, both in terms of accuracy of clustering and prediction, and the ease with which we can map new, arbitrary samples into its distribution for future predictions. 
+
+```{r}
+scaled_df <- df_capped
+
+scaled_df$BALANCE <-scale(scaled_df$BALANCE)[, 1]
+scaled_df$BALANCE_FREQUENCY <-scale(df$BALANCE_FREQUENCY)[, 1]               
+scaled_df$PURCHASES <- scale(df$PURCHASES)[, 1]                       
+scaled_df$ONEOFF_PURCHASES <- scale(df$ONEOFF_PURCHASES)[, 1]                
+scaled_df$INSTALLMENTS_PURCHASES<- scale(df$INSTALLMENTS_PURCHASES)[, 1]          
+scaled_df$CASH_ADVANCE<- scale(df$CASH_ADVANCE)[, 1]                    
+scaled_df$PURCHASES_FREQUENCY<- scale(df$PURCHASES_FREQUENCY)[, 1]           
+scaled_df$ONEOFF_PURCHASES_FREQUENCY <- scale(df$ONEOFF_PURCHASES_FREQUENCY)[, 1]     
+scaled_df$PURCHASES_INSTALLMENTS_FREQUENCY<- scale(df$PURCHASES_INSTALLMENTS_FREQUENCY)[, 1]
+scaled_df$CASH_ADVANCE_FREQUENCY <- scale(df$CASH_ADVANCE_FREQUENCY)[, 1]         
+scaled_df$CASH_ADVANCE_TRX <- scale(df$CASH_ADVANCE_TRX)[, 1]               
+scaled_df$PURCHASES_TRX   <- scale(df$PURCHASES_TRX)[, 1]                
+scaled_df$CREDIT_LIMIT<- scale(df$CREDIT_LIMIT)[, 1]                   
+scaled_df$PAYMENTS  <- scale(df$PAYMENTS)[, 1]                      
+# scaled_df$MINIMUM_PAYMENTS <- scale(df$MINIMUM_PAYMENTS)[, 1]      # We've nullified this column.           
+scaled_df$PRC_FULL_PAYMENT <- scale(df$PRC_FULL_PAYMENT)[, 1]              
+scaled_df$TENURE<- scale(df$TENURE)[, 1]
+str(scaled_df)
+```
+
+```{r}
+range(scaled_df$BALANCE) 
+range(scaled_df$PURCHASES) 
+range(scaled_df$ONEOFF_PURCHASES) 
+range(scaled_df$INSTALLMENTS_PURCHASES) 
+range(scaled_df$CASH_ADVANCE) 
+range(scaled_df$CREDIT_LIMIT) 
+# And the frequency variables, which are pre-scaled, for comparison:
+range(scaled_df$PURCHASES_FREQUENCY)             
+range(scaled_df$ONEOFF_PURCHASES_FREQUENCY)      
+range(scaled_df$PURCHASES_INSTALLMENTS_FREQUENCY)
+range(scaled_df$CASH_ADVANCE_FREQUENCY) 
+```
+
+Oh, goodie! I'm having trouble interpreting that already. If we have trouble getting to the bottom of all that - we'll stick with the basic, student-model hackish version for our predictions.
+
 
 
 # MODELING
 
 ## Select Modeling Technique
 
-K-Means, we try first.
+We have decided to try a few different models based on the K-means algorithm. Our models will differ by the inputs they take, and how those inputs are cleaned and scaled.
+
+This will allow us to compare the resulting models easily, and determine which data preparation techniques are best suited to the knowledge discovery we seek.
 
 ## Generate Test Design
+
+
 
 # Determine number of clusters
 
@@ -330,7 +424,7 @@ First, we'll do it with many columns, so we can compare to much smaller number m
 
 ```{r message=FALSE, warning=FALSE}
 
-cld <- df[c(2:14)]
+cld <- scaled_df[c(2:14)]
 
 wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
 for (i in 2:10) wss[i] <- sum(kmeans(cld,
@@ -344,7 +438,7 @@ Here's the same test, but performed only with BALANCE, PURCHASES, ONEOFF_PURCHAS
 
 ```{r message=FALSE, warning=FALSE}
 
-cld <- df[c(2,4:7)]
+cld <- scaled_df[c(2,4:7)]
 
 wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
 for (i in 2:10) wss[i] <- sum(kmeans(cld,
@@ -358,7 +452,7 @@ We've definitely lost some of our predicting power with only those columns - let
 
 ```{r message=FALSE, warning=FALSE}
 
-cld <- df[c(2,4:7, 14)]
+cld <- scaled_df[c(2,4:7, 14)]
 
 wss <- (nrow(cld)-1)*sum(apply(cld,2,var))
 for (i in 2:10) wss[i] <- sum(kmeans(cld,
@@ -469,23 +563,38 @@ clx <- data.frame(clx, fit$cluster)
 
 
 
+# Compute
+library("NbClust")
+scaled_df.NbClust <- scaled_df
+
+NbClust(scaled_df, diss=NULL, distance = "euclidean", min.nc=1, max.nc=10, 
+            method = "complete", index = "kl") 
 
 
 
-#first scaling the data
-dft <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = TRUE, header = TRUE, encoding  = "UTF-8")
-dft <- dft[,-1]
-dft <- na.omit(dft)
-scaled.dft <- scale(dft)
+clus_df <- scaled_df [c(2:14)]
 
-# Credit Card user  matrix
-scaled.dft <- dist(scaled.dft, method = "euclidean")
 
-# Hierarchical clustering using Complete Linkage
-hc1 <- hclust(scaled.dft, method = "average" )
 
-# Plot the obtained dendrogram
-plot(hc1, cex = 0.9, hang = -2)
+
+# Gap statistic
+# nboot = 50 to keep the function speedy. 
+# recommended value: nboot= 500 for your analysis.
+# Use verbose = FALSE to hide computing progression.
+set.seed(123)
+fviz_nbclust(clus_df, kmeans, nstart = 25,  method = "gap_stat", nboot = 20)+
+  labs(subtitle = "Gap statistic method")
+
+
+
+```{r}
+
+```
+
+
+
+
+
 
 
 
