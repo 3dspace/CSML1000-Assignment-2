@@ -22,7 +22,7 @@ library(tidyverse);  # data manipulation
 library(cluster);    # clustering algorithms
 library(clusterSim);
 library(factoextra);
-
+library(fpc);
 
 
 
@@ -480,26 +480,10 @@ This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders,
 
 It is interesting that whether or not we cap, with 6 clusters, we get two groups of "cash advancers", which differ only in terms of credit limit.
 
-Let's try to export that 6 cluster version as an .rda file for use in the Shiny App:
 
 ```{r message=FALSE, warning=FALSE}
-dfx <- read.csv("credit-card-cust-behav-data.csv", stringsAsFactors = FALSE, header = TRUE, encoding  = "UTF-8")
-dfx <- na.omit(dfx)
-clx <- dfx[c(2,4:7,14)]
-
-wss <- (nrow(clx)-1)*sum(apply(clx,2,var))
-for (i in 2:10) wss[i] <- sum(kmeans(clx,
-   centers=i)$withinss)
-plot(1:10, wss, type="b", xlab="Number of Clusters",
-  ylab="Within groups sum of squares") 
-# K-Means Cluster Analysis
-fit <- kmeans(clx, 6) # 6 cluster solution
-# get cluster means
-aggregate(clx,by=list(fit$cluster),FUN=mean)
-# append cluster assignment
-clx <- data.frame(clx, fit$cluster)
-## Assess Model
-#save(clx , file = 'CreditCardBehaviour6Clusters.rda')
+clusplot(cld2, fit$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
 ```
 
 # Model 2 - With hackishly scaled data
@@ -526,6 +510,11 @@ cluster_data_2 <- data.frame(cluster_data_2, fit_2$cluster)
 ## Assess Model
 ```
 
+```{r message=FALSE, warning=FALSE}
+clusplot(cluster_data_2, fit_2$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
+```
+
 And Let's try that with 8 clusters, to see if we can make use of that:
 
 ```{r message=FALSE, warning=FALSE}
@@ -537,6 +526,13 @@ aggregate(cluster_data_2,by=list(fit_2_8$cluster),FUN=mean)
 cluster_data_2 <- data.frame(cluster_data_2, fit_2_8$cluster)
 ## Save Model
 save(fit_2_8 , file = 'CreditCardBehaviour8Clusters.rda')
+```
+
+Differernt way of looking at clusters.
+
+```{r message=FALSE, warning=FALSE}
+clusplot(cluster_data_2, fit_2_8$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
 ```
 
 # Model 3 - With formally scaled data
@@ -555,12 +551,17 @@ plot(1:15, wss, type="b", xlab="Number of Clusters",
 
 ```{r message=FALSE, warning=FALSE}
 # K-Means Cluster Analysis
-fit_3 <- kmeans(cluster_data_3, 8) # 8 cluster solution
+fit_3 <- kmeans(cluster_data_3, 6) # 6 cluster solution
 # get cluster means
 aggregate(cluster_data_3,by=list(fit_3$cluster),FUN=mean)
 # append cluster assignment
 cluster_data_3 <- data.frame(cluster_data_3, fit_3$cluster)
 ## Assess Model
+```
+
+```{r message=FALSE, warning=FALSE}
+clusplot(cluster_data_3, fit_3$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
 ```
 
 And Let's try that with 11 clusters, to see if we can make use of that:
@@ -574,6 +575,11 @@ aggregate(cluster_data_3,by=list(fit_3_11$cluster),FUN=mean)
 cluster_data_3 <- data.frame(cluster_data_3, fit_3_11$cluster)
 ## Save Model
 #save(fit_3_11 , file = 'CreditCardBehaviour11Clusters.rda')
+```
+
+```{r message=FALSE, warning=FALSE}
+clusplot(cluster_data_3, fit_3_11$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
 ```
 
 # EVALUATION
