@@ -39,16 +39,16 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-            helpText("Below is the predict value from our model"),
-            textOutput("predictVal")
+            helpText("Below is the predict value from our model. The red dot is your input data point"),
+            textOutput("predictVal"),
+            plotOutput("plot1", click = "plot_click")
         )
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-    #model2 <- readRDS("./CreditCardBehaviour6Clusters-2.rda")
-    model2 <- readRDS("./can-predict-2.rda")
+    model2 <- readRDS("./model-fit.rda")
     
     observeEvent(input$submit, {
         #finalVal = input$balance + input$purchases + input$oneoff + input$installments + input$cash + input$credit
@@ -56,7 +56,13 @@ server <- function(input, output) {
         finalVal = predict(model2, newdata=testDf)
         print(finalVal)
         output$predictVal <- renderText({finalVal})
+        output$plot1 <- renderPlot({
+            image(model2)
+            points(testDf, col=testDf, pch=22, cex=1.5, bg="red")
+        })
     })
+    
+    
 }
 
 # Run the application 
