@@ -39,7 +39,7 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-            helpText("Below is the predict value from our model. The red dot is your input data point"),
+            helpText("Below is the prediction from our model. The Red Dot, inside the graph, is your input data point"),
             textOutput("predictVal"),
             plotOutput("plot1", click = "plot_click")
         )
@@ -55,7 +55,7 @@ server <- function(input, output) {
         testDf <- data.frame(c(input$balance),  c(input$purchases),  c(input$oneoff),  c(input$installments),  c(input$cash),  c(input$credit))
         finalVal = predict(model2, newdata=testDf)
         print(finalVal)
-        output$predictVal <- renderText({finalVal})
+        output$predictVal <- renderText({paste("Your data point belongs to cluster #", finalVal)})
         output$plot1 <- renderPlot({
             image(model2)
             points(testDf, col=testDf, pch=22, cex=1.5, bg="red")
