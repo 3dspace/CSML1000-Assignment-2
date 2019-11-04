@@ -3,7 +3,7 @@
 title: Clustering Credit Card Customers for Targeted Marketing using Unsupervised
   Learning
 output:
-  pdf_document: default
+  # pdf_document: default - coloured graphs take way too long to render in PDF form.
   html_document: default
 ---
 
@@ -23,20 +23,17 @@ library(cluster);    # clustering algorithms
 library(clusterSim);
 library(factoextra);
 library(fpc);
-
-
-
 ```
 
 # OVERVIEW
 
 Using data on the behaviour of credit card customers, we can use unsupervised learning to discover market segments that would be useful for targeting marketing strategies.
 
-Our dataset has 19 columns of data on 9000 customers. Using K-means and PCA, we can determine an optimal number of market segments, discover the identifying properties of those segments, and be able to describe to the marketing department what the most significant behaviours of the people in those segments are. Marketing campaigns, then, can be targeted at, for example, impulse shoppers, big spenders, or people who have a hard time paying off their debts.
+Our dataset has 19 columns of data on 9000 customers. Using K-means and PCA, we can determine an optimal number of market segments, discover the identifying properties of those segments, and be able to describe to the marketing department what the most significant behaviours of the people in those segments are. Marketing campaigns, then, can be targeted at, for example, impulse shoppers, or big spenders.
 
 # BUSINESS UNDERSTANDING
 
-Applying specific marketing strategies to different types of customers can improve results and reduce costs. Credit card customers can be profiled by the way they use, and pay off, their card.
+Applying specific marketing strategies to different types of customers can improve results and reduce costs. Credit card customers can be profiled by the way they use, and pay off, their card. The dataset contains data about how customers behave - how much they spend, the type of spending they do, and their frequency of each type of transaction. By understanding the patterns in the data, we will be able to select an optimal subset of our customer base for a targeted marketing campaign.
 
 ## Business Objectives
 
@@ -44,8 +41,7 @@ Behavioural data can be mined to discover identifying features of clusters of cu
  
 ## Data Mining Goals
 
-Using shallow algorithm unsupervised learning, we can discover clusters containing customers who exhibit similar behaviours. We can examine those 
-
+Using shallow algorithm unsupervised learning, we will discover patterns in the data, and from those patterns we will discover an optimal set of clusters, or customer segments, with which we can associate certain behaviours. We would then like to be able to use our model to predict the appropriate segment, or target market, of customers who are not in our trianing data.
 
 # DATA UNDERSTANDING
 
@@ -66,7 +62,22 @@ str(df)
 
 ## Describe Data
 
-TO BE DONE.
+The data describe 4 different spending behaviours:
+
+- Purchases
+- One-off Purchases
+- Installment Purchases
+- Cash Advances.
+
+For each of these behaviours, there are 3 types of data:
+
+- Dollar amount
+- Number of transactions
+- Frequency of transactions
+
+There is also data about Credit Limit, Balance, and various behaviours related to payments.
+
+We are mostly interested in the spending behaviours, but will look at the predictive value of other data as well.
 
 ## Explore Data
 
@@ -480,11 +491,26 @@ This 6-cluster solution clearly nets us 6 groups we can identify - Big Spenders,
 
 It is interesting that whether or not we cap, with 6 clusters, we get two groups of "cash advancers", which differ only in terms of credit limit.
 
+Let's have a look at a cluster plot for that.
+
+```{r message=FALSE, warning=FALSE}
+fviz_cluster(fit,cld2, ellipse.type = "norm")+ theme_minimal() 
+```
+
+And now a cluster plot with a more primitive library, just to be sure we might not be missing patterns with this colourful approach.
 
 ```{r message=FALSE, warning=FALSE}
 clusplot(cld2, fit$cluster, color=TRUE, shade=TRUE, 
          labels=2, lines=0)
 ```
+
+While not all of the groups stand out clearly in this plot, we can easily line up two of them with the numerical data above - the Big Spenders, and the Balance Carriers.
+
+This model is okay for a start, but we're missing some good data still. We would like more information about how frequently a customer performs various transaction types, in addition to how much money they spend. For example, Big Spenders could be the type to do massive one-off purchases - or they may be the type to do many small purchases every week.
+
+This data exists in the dataset, but we would need to employ some Feature Scaling for our model to be able to learn from it, and not just the very large dollar amounts.
+
+For our first attempt, we will scale the larger dollar-denominated data by simply dividing it by the amount we capped it to earlier, resulting in a range of values from zero to one.
 
 # Model 2 - With hackishly scaled data
 
@@ -500,6 +526,8 @@ plot(1:15, wss, type="b", xlab="Number of Clusters",
  
 ```
 
+We can see right away that our Sum of Squares is much, much lower than the previous example - though this may not tell us much, given that we have dramatically change the variance of most of our features. 
+
 ```{r message=FALSE, warning=FALSE}
 # K-Means Cluster Analysis
 fit_2 <- kmeans(cluster_data_2, 6) # 6 cluster solution
@@ -509,13 +537,13 @@ aggregate(cluster_data_2,by=list(fit_2$cluster),FUN=mean)
 cluster_data_2 <- data.frame(cluster_data_2, fit_2$cluster)
 ## Assess Model
 ```
-
 ```{r message=FALSE, warning=FALSE}
-clusplot(cluster_data_2, fit_2$cluster, color=TRUE, shade=TRUE, 
-         labels=2, lines=0)
+fviz_cluster(fit_2,cluster_data_2, ellipse.type = "norm")+ theme_minimal() 
 ```
 
-And Let's try that with 8 clusters, to see if we can make use of that:
+In trying to interpret these clusters, we can see that we have less interpretable results now. The average Purchases of the Big Spenders is around 0.19 - as is the average Cash Advances of the Big Cash Advancers. While we know we can restore these to dollar amounts by multiplying by our scale factor - 20,000 - as we go deeper and deeper into the features, while we can tell which are highest and which are lowest, it is more and more difficult to interpret what these averages refer to.
+
+And Let's try that with 8 clusters, so we can compare it to the six:
 
 ```{r message=FALSE, warning=FALSE}
 # K-Means Cluster Analysis
@@ -528,14 +556,17 @@ cluster_data_2 <- data.frame(cluster_data_2, fit_2_8$cluster)
 save(fit_2_8 , file = 'CreditCardBehaviour8Clusters.rda')
 ```
 
-Differernt way of looking at clusters.
+As suggested by the elbow chart, we aren't really getting more useful clusters, by going in this direction.
 
 ```{r message=FALSE, warning=FALSE}
-clusplot(cluster_data_2, fit_2_8$cluster, color=TRUE, shade=TRUE, 
-         labels=2, lines=0)
+fviz_cluster(fit_2_8,cluster_data_2, ellipse.type = "norm")+ theme_minimal() 
 ```
 
 # Model 3 - With formally scaled data
+
+For our third, and final, model, we will use classical scaling with the scale() function. While this should lead to better results, it also increases the challenge of interpreting the clusters, as well as the challenge of making predictions based on raw data, when our model has been trained using scaled data. How do we scale the raw data, into the same distribution as the scaled data our model was trained on? We explore that in order to use models like these in our Shiny App.
+
+So here's a K means clustering, with our properly scaled data:
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -560,8 +591,7 @@ cluster_data_3 <- data.frame(cluster_data_3, fit_3$cluster)
 ```
 
 ```{r message=FALSE, warning=FALSE}
-clusplot(cluster_data_3, fit_3$cluster, color=TRUE, shade=TRUE, 
-         labels=2, lines=0)
+fviz_cluster(fit_3,cluster_data_3, ellipse.type = "norm")+ theme_minimal() 
 ```
 
 And Let's try that with 11 clusters, to see if we can make use of that:
@@ -582,9 +612,17 @@ clusplot(cluster_data_3, fit_3_11$cluster, color=TRUE, shade=TRUE,
          labels=2, lines=0)
 ```
 
+As suggested by the "elbow" graph, going to a higher numbers of clusters doesn't appear to yield any more useful information.
+
 # EVALUATION
 
 Evaluation? Coming soon.
+
+```{r message=FALSE, warning=FALSE}
+fviz_cluster(fit_3,cluster_data_3, ellipse.type = "norm")+ theme_minimal() 
+```
+
+
 
 ## Evaluate Results
 ## Approved Models
